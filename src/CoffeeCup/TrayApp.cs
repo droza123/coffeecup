@@ -40,9 +40,13 @@ namespace CoffeeCup
         private Icon _currentIcon;
         private int _iconSize;
         private bool _lightTaskbar;
+        private bool _warnedAboutSleepSettings;
 
         public TrayApp()
         {
+            // Put back sleep settings left overridden by a previous run that didn't exit cleanly.
+            SleepTimeout.Restore();
+
             _invoker = new Control();
             _ = _invoker.Handle; // create the handle so BeginInvoke works from other threads
 
@@ -101,6 +105,7 @@ namespace CoffeeCup
 
             SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
             SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+            SystemEvents.SessionEnding += OnSessionEnding;
 
             // Other launches of CoffeeCup.exe talk to this one through these events.
             _exitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, Program.ExitEventName);
@@ -150,6 +155,7 @@ namespace CoffeeCup
                 _sessionEndUtc = null;
             }
             Power.KeepAwake(_settings.KeepDisplayOn);
+            OverrideSleepTimeout();
             _keepAliveTimer.Start();
             StartAnimating();
         }
@@ -160,6 +166,7 @@ namespace CoffeeCup
             _sessionEndUtc = null;
             _keepAliveTimer.Stop();
             Power.AllowSleep();
+            SleepTimeout.Restore();
             StartAnimating();
         }
 
@@ -181,6 +188,29 @@ namespace CoffeeCup
             {
                 _notify.ShowBalloonTip(4000, "CoffeeCup", "Couldn't change the startup setting: " + ex.Message, ToolTipIcon.Warning);
             }
+        }
+
+        /// <summary>
+        /// Some PCs (notably Modern Standby laptops) sleep on their idle timer despite the power
+        /// request, so the plan's sleep timeout is set to Never while awake, and restored after.
+        /// </summary>
+        private void OverrideSleepTimeout()
+        {
+            bool ok = SleepTimeout.Override();
+            if (_warnedAboutSleepSettings) return;
+            if (!ok || SleepTimeout.IsManagedByPolicy)
+            {
+                _warnedAboutSleepSettings = true;
+                _notify.ShowBalloonTip(6000, "CoffeeCup can't change your sleep settings",
+                    "Your PC may still sleep while the screen is off. Tick \"Keep screen on\" to make sure it stays awake.",
+                    ToolTipIcon.Warning);
+            }
+        }
+
+        private void OnSessionEnding(object sender, SessionEndingEventArgs e)
+        {
+            // Signing out or shutting down: don't leave the PC set to never sleep.
+            SleepTimeout.Restore();
         }
 
         /// <summary>Runs every 15 s while awake: renews the power request and, once the
@@ -351,6 +381,7 @@ namespace CoffeeCup
         private void Exit()
         {
             Power.AllowSleep();
+            SleepTimeout.Restore();
             _timer.Stop();
             _keepAliveTimer.Stop();
             _notify.Visible = false; // remove the icon now rather than leaving a ghost
@@ -363,6 +394,7 @@ namespace CoffeeCup
             {
                 SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
                 SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+                SystemEvents.SessionEnding -= OnSessionEnding;
                 _exitWait.Unregister(null);
                 _showWait.Unregister(null);
                 _exitEvent.Dispose();

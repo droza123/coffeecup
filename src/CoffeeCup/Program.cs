@@ -20,7 +20,11 @@ namespace CoffeeCup
                 if (exitRequested)
                 {
                     // Used by the installer and uninstaller to close a running copy cleanly.
-                    if (firstInstance) return 0;
+                    if (firstInstance)
+                    {
+                        SleepTimeout.Restore(); // not running, but don't leave sleep set to Never
+                        return 0;
+                    }
                     Signal(ExitEventName);
                     try { mutex.WaitOne(TimeSpan.FromSeconds(5)); }
                     catch (AbandonedMutexException) { }
