@@ -11,7 +11,7 @@ A tiny Windows tray app that keeps your PC awake, in the spirit of Caffeine.
 
 ## Install
 
-1. Open **Releases** (or the latest **Actions → Build** run) and download `CoffeeCup-Setup-x.y.z.exe`.
+1. Open **Releases** and download `CoffeeCup-Setup-x.y.z.exe`.
 2. Run it. It installs just for you, so no admin prompt. You can pick "Start CoffeeCup when I sign in".
 3. Look for the mug in the notification area. On Windows 11 it may be hidden under the **^** arrow at first. To keep it visible, drag it onto the taskbar, or turn it on under *Settings → Personalization → Taskbar → Other system tray icons*.
 
@@ -59,7 +59,9 @@ power policy is overriding it. If your organization manages the sleep settings, 
 
 ## Building
 
-GitHub Actions (`.github/workflows/build.yml`) builds the app and the Inno Setup installer on every push. Pushing a tag such as `v1.0.1` also publishes a GitHub Release with the installer attached.
+GitHub Actions (`.github/workflows/build.yml`) builds the app and the Inno Setup installer on every push. Every push to
+`main` also publishes a GitHub Release named after `<Version>` in `src/CoffeeCup/CoffeeCup.csproj`, for example `v1.0.3`,
+with the installer attached. Bump the version to publish a new release.
 
 To build locally on Windows:
 
