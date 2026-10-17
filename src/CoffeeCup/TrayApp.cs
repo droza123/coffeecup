@@ -14,6 +14,7 @@ namespace CoffeeCup
         private const int FastInterval = 40;   // ms between frames while coffee pours or drains
         private const int SlowInterval = 300;  // ms between steam frames
         private const float PourStep = 1f / 22; // fraction of a full mug per fast frame (~1 s to fill)
+        private static readonly TimeSpan NudgeAfterIdle = TimeSpan.FromSeconds(30);
 
         private readonly Settings _settings = Settings.Load();
         private readonly NotifyIcon _notify;
@@ -24,6 +25,7 @@ namespace CoffeeCup
         private readonly ToolStripMenuItem _startWithWindowsItem;
         private readonly ToolStripMenuItem _startActiveItem;
         private readonly System.Windows.Forms.Timer _timer;
+        private readonly System.Windows.Forms.Timer _keepAliveTimer;
         private readonly MugRenderer _renderer;
         private readonly Control _invoker;
         private readonly EventWaitHandle _exitEvent;
@@ -94,6 +96,9 @@ namespace CoffeeCup
             _timer = new System.Windows.Forms.Timer { Interval = SlowInterval };
             _timer.Tick += (s, e) => Tick();
 
+            _keepAliveTimer = new System.Windows.Forms.Timer { Interval = 15000 };
+            _keepAliveTimer.Tick += (s, e) => KeepAlive();
+
             SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
             SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
@@ -145,6 +150,7 @@ namespace CoffeeCup
                 _sessionEndUtc = null;
             }
             Power.KeepAwake(_settings.KeepDisplayOn);
+            _keepAliveTimer.Start();
             StartAnimating();
         }
 
@@ -152,6 +158,7 @@ namespace CoffeeCup
         {
             _active = false;
             _sessionEndUtc = null;
+            _keepAliveTimer.Stop();
             Power.AllowSleep();
             StartAnimating();
         }
@@ -174,6 +181,17 @@ namespace CoffeeCup
             {
                 _notify.ShowBalloonTip(4000, "CoffeeCup", "Couldn't change the startup setting: " + ex.Message, ToolTipIcon.Warning);
             }
+        }
+
+        /// <summary>Runs every 15 s while awake: renews the power request and, once the
+        /// user has been idle for a while, simulates a key press so Windows sees activity.</summary>
+        private void KeepAlive()
+        {
+            if (!_active) return;
+            Power.KeepAwake(_settings.KeepDisplayOn);
+            // A key press also wakes the display, so only use it when the screen should stay on.
+            if (_settings.KeepDisplayOn && Power.IdleTime >= NudgeAfterIdle)
+                Power.SimulateActivity();
         }
 
         private TimeSpan? Remaining =>
@@ -334,6 +352,7 @@ namespace CoffeeCup
         {
             Power.AllowSleep();
             _timer.Stop();
+            _keepAliveTimer.Stop();
             _notify.Visible = false; // remove the icon now rather than leaving a ghost
             ExitThread();
         }
@@ -349,6 +368,7 @@ namespace CoffeeCup
                 _exitEvent.Dispose();
                 _showEvent.Dispose();
                 _timer.Dispose();
+                _keepAliveTimer.Dispose();
                 _notify.Dispose();
                 _menu.Dispose();
                 _renderer.Dispose();

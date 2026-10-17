@@ -32,9 +32,23 @@ Uninstall it from *Settings → Apps*. That also removes the startup entry and s
 
 Settings live in `HKCU\Software\CoffeeCup`.
 
-**How it works:** CoffeeCup calls
-[`SetThreadExecutionState`](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-setthreadexecutionstate),
-the same API PowerToys Awake uses. It doesn't fake key presses. Closing the lid, pressing the power button, or choosing Sleep yourself still puts the PC to sleep. Some organisations enforce screen-lock policies that this doesn't override.
+**How it works:** while it's on, CoffeeCup does two things:
+
+1. It holds a Windows power request
+   ([`SetThreadExecutionState`](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-setthreadexecutionstate),
+   the same call PowerToys Awake uses).
+2. Like the original Caffeine, once you've been idle for 30 seconds it taps **F15**, a key almost no app
+   reacts to, so Windows sees activity. This is what keeps managed PCs and Modern Standby laptops awake,
+   because those can ignore power requests. This only happens with *Keep screen on* ticked (the default),
+   since a key press also keeps the screen on. With it unticked, CoffeeCup relies on the power request alone.
+
+Closing the lid, pressing the power button, or choosing Sleep yourself still puts the PC to sleep.
+
+### If your PC still sleeps
+
+With CoffeeCup on, open a Command Prompt and run `powercfg /requests`. `CoffeeCup.exe` should appear under
+**SYSTEM** (and under **DISPLAY** when *Keep screen on* is ticked). If it's listed but the PC still sleeps, a
+power policy is overriding it. Please open an issue with the output of `powercfg /requests` and `powercfg /a`.
 
 ## Building
 
