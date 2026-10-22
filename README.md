@@ -27,12 +27,13 @@ Uninstall it from *Settings → Apps*. That also removes the startup entry and s
 | Hover | Shows the status and the time left |
 | Right-click → **Stay awake for** | Starts a session of 15 min to 8 h, or indefinitely. The ✓ choice becomes the double-click default |
 | Right-click → **Keep screen on** | On: the display stays on too. Off: only the system stays awake, so the screen can still turn off |
+| Right-click → **Stay awake with lid closed** | On (the default): closing the lid does nothing while the mug is on. Careful: a running laptop in a bag gets hot |
 | Right-click → **Start with Windows** | Launches CoffeeCup when you sign in |
 | Right-click → **Stay awake when CoffeeCup starts** | Activates straight away at launch |
 
 Settings live in `HKCU\Software\CoffeeCup`.
 
-**How it works:** while it's on, CoffeeCup does three things:
+**How it works:** while it's on, CoffeeCup does up to four things:
 
 1. It holds a Windows power request
    ([`SetThreadExecutionState`](https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-setthreadexecutionstate),
@@ -45,10 +46,14 @@ Settings live in `HKCU\Software\CoffeeCup`.
    screen timeout. When the mug goes off, or you exit or sign out, it puts your values back. If you change
    them yourself in the meantime, it leaves your change alone. This is what lets a Modern Standby laptop stay awake
    with its screen off. Windows can idle one of these into standby even while a power request is active.
+4. With *Stay awake with lid closed* ticked, it sets **When I close the lid** to *Do nothing* (plugged in and on
+   battery), and restores your setting the same way.
+
    The original values are saved under `HKCU\Software\CoffeeCup\SavedSleepSettings` until restored, so a
    crash can't leave your PC set to never sleep: they're put back the next time CoffeeCup starts.
 
-Closing the lid, pressing the power button, or choosing Sleep yourself still puts the PC to sleep.
+Pressing the power button or choosing Sleep yourself still puts the PC to sleep. So does closing the lid, unless
+*Stay awake with lid closed* is ticked.
 
 ### If your PC still sleeps
 

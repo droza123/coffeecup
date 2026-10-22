@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>CoffeeCup</AssemblyName>
     <RootNamespace>CoffeeCup</RootNamespace>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <Product>CoffeeCup</Product>
     <Description>Keeps your PC awake. Double-click the mug.</Description>
     <Copyright>Copyright © 2026 droza123</Copyright>

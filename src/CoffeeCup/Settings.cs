@@ -14,6 +14,9 @@ namespace CoffeeCup
         public bool KeepDisplayOn { get; set; } = true;
         public bool StartActive { get; set; }
 
+        /// <summary>While awake, set "when I close the lid" to Do nothing.</summary>
+        public bool StayAwakeLidClosed { get; set; } = true;
+
         /// <summary>Length of a session started by double-clicking; 0 means indefinitely.</summary>
         public int DefaultMinutes { get; set; }
 
@@ -30,6 +33,7 @@ namespace CoffeeCup
                     if (key == null) return s;
                     s.KeepDisplayOn = ReadInt(key, nameof(KeepDisplayOn), 1) != 0;
                     s.StartActive = ReadInt(key, nameof(StartActive), 0) != 0;
+                    s.StayAwakeLidClosed = ReadInt(key, nameof(StayAwakeLidClosed), 1) != 0;
                     s.DefaultMinutes = Math.Max(0, ReadInt(key, nameof(DefaultMinutes), 0));
                     s.WelcomeShown = ReadInt(key, nameof(WelcomeShown), 0) != 0;
                 }
@@ -46,6 +50,7 @@ namespace CoffeeCup
                 {
                     key.SetValue(nameof(KeepDisplayOn), KeepDisplayOn ? 1 : 0, RegistryValueKind.DWord);
                     key.SetValue(nameof(StartActive), StartActive ? 1 : 0, RegistryValueKind.DWord);
+                    key.SetValue(nameof(StayAwakeLidClosed), StayAwakeLidClosed ? 1 : 0, RegistryValueKind.DWord);
                     key.SetValue(nameof(DefaultMinutes), DefaultMinutes, RegistryValueKind.DWord);
                     key.SetValue(nameof(WelcomeShown), WelcomeShown ? 1 : 0, RegistryValueKind.DWord);
                 }

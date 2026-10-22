@@ -22,7 +22,7 @@ namespace CoffeeCup
                     // Used by the installer and uninstaller to close a running copy cleanly.
                     if (firstInstance)
                     {
-                        SleepTimeout.Restore(); // not running, but don't leave sleep set to Never
+                        PowerPlanOverride.Restore(); // not running, but don't leave power settings overridden
                         return 0;
                     }
                     Signal(ExitEventName);

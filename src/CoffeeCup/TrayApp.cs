@@ -22,6 +22,7 @@ namespace CoffeeCup
         private readonly ToolStripMenuItem _toggleItem;
         private readonly ToolStripMenuItem _durationMenu;
         private readonly ToolStripMenuItem _keepDisplayItem;
+        private readonly ToolStripMenuItem _lidItem;
         private readonly ToolStripMenuItem _startWithWindowsItem;
         private readonly ToolStripMenuItem _startActiveItem;
         private readonly System.Windows.Forms.Timer _timer;
@@ -44,8 +45,8 @@ namespace CoffeeCup
 
         public TrayApp()
         {
-            // Put back sleep settings left overridden by a previous run that didn't exit cleanly.
-            SleepTimeout.Restore();
+            // Put back power settings left overridden by a previous run that didn't exit cleanly.
+            PowerPlanOverride.Restore();
 
             _invoker = new Control();
             _ = _invoker.Handle; // create the handle so BeginInvoke works from other threads
@@ -70,6 +71,10 @@ namespace CoffeeCup
             }
 
             _keepDisplayItem = new ToolStripMenuItem("Keep screen on", null, (s, e) => SetKeepDisplayOn(!_settings.KeepDisplayOn));
+            _lidItem = new ToolStripMenuItem("Stay awake with lid closed", null, (s, e) => SetStayAwakeLidClosed(!_settings.StayAwakeLidClosed))
+            {
+                ToolTipText = "While the mug is on, closing the lid does nothing. Careful: a running laptop in a bag gets hot.",
+            };
             _startWithWindowsItem = new ToolStripMenuItem("Start with Windows", null, (s, e) => ToggleStartWithWindows());
             _startActiveItem = new ToolStripMenuItem("Stay awake when CoffeeCup starts", null, (s, e) =>
             {
@@ -84,6 +89,7 @@ namespace CoffeeCup
                 _durationMenu,
                 new ToolStripSeparator(),
                 _keepDisplayItem,
+                _lidItem,
                 _startWithWindowsItem,
                 _startActiveItem,
                 new ToolStripSeparator(),
@@ -155,7 +161,7 @@ namespace CoffeeCup
                 _sessionEndUtc = null;
             }
             Power.KeepAwake(_settings.KeepDisplayOn);
-            OverrideSleepTimeout();
+            OverridePowerPlan();
             _keepAliveTimer.Start();
             StartAnimating();
         }
@@ -166,7 +172,7 @@ namespace CoffeeCup
             _sessionEndUtc = null;
             _keepAliveTimer.Stop();
             Power.AllowSleep();
-            SleepTimeout.Restore();
+            PowerPlanOverride.Restore();
             StartAnimating();
         }
 
@@ -176,6 +182,17 @@ namespace CoffeeCup
             _settings.Save();
             if (_active) Power.KeepAwake(value);
             UpdateTooltip();
+        }
+
+        private void SetStayAwakeLidClosed(bool value)
+        {
+            _settings.StayAwakeLidClosed = value;
+            _settings.Save();
+            if (_active)
+            {
+                PowerPlanOverride.Restore(); // re-apply with or without the lid setting
+                OverridePowerPlan();
+            }
         }
 
         private void ToggleStartWithWindows()
@@ -192,17 +209,21 @@ namespace CoffeeCup
 
         /// <summary>
         /// Some PCs (notably Modern Standby laptops) sleep on their idle timer despite the power
-        /// request, so the plan's sleep timeout is set to Never while awake, and restored after.
+        /// request, so while awake the plan's sleep timeout is set to Never and, if chosen, the
+        /// lid action to Do nothing. Both are restored afterwards.
         /// </summary>
-        private void OverrideSleepTimeout()
+        private void OverridePowerPlan()
         {
-            bool ok = SleepTimeout.Override();
+            bool lid = _settings.StayAwakeLidClosed;
+            bool ok = PowerPlanOverride.Override(lid);
             if (_warnedAboutSleepSettings) return;
-            if (!ok || SleepTimeout.IsManagedByPolicy)
+            if (!ok || PowerPlanOverride.IsManagedByPolicy(lid))
             {
                 _warnedAboutSleepSettings = true;
-                _notify.ShowBalloonTip(6000, "CoffeeCup can't change your sleep settings",
-                    "Your PC may still sleep while the screen is off. Tick \"Keep screen on\" to make sure it stays awake.",
+                _notify.ShowBalloonTip(6000, "CoffeeCup can't change your power settings",
+                    lid
+                        ? "Your PC may still sleep when the screen turns off or the lid is closed."
+                        : "Your PC may still sleep while the screen is off. Tick \"Keep screen on\" to make sure it stays awake.",
                     ToolTipIcon.Warning);
             }
         }
@@ -210,7 +231,7 @@ namespace CoffeeCup
         private void OnSessionEnding(object sender, SessionEndingEventArgs e)
         {
             // Signing out or shutting down: don't leave the PC set to never sleep.
-            SleepTimeout.Restore();
+            PowerPlanOverride.Restore();
         }
 
         /// <summary>Runs every 15 s while awake: renews the power request and, once the
@@ -314,6 +335,7 @@ namespace CoffeeCup
             foreach (ToolStripMenuItem item in _durationMenu.DropDownItems)
                 item.Checked = (int)item.Tag == _settings.DefaultMinutes;
             _keepDisplayItem.Checked = _settings.KeepDisplayOn;
+            _lidItem.Checked = _settings.StayAwakeLidClosed;
             _startWithWindowsItem.Checked = Settings.StartWithWindows;
             _startActiveItem.Checked = _settings.StartActive;
         }
@@ -381,7 +403,7 @@ namespace CoffeeCup
         private void Exit()
         {
             Power.AllowSleep();
-            SleepTimeout.Restore();
+            PowerPlanOverride.Restore();
             _timer.Stop();
             _keepAliveTimer.Stop();
             _notify.Visible = false; // remove the icon now rather than leaving a ghost
